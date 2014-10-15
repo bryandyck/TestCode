@@ -1,0 +1,39 @@
+Microsoft Visual Studio Solution File, Format Version 7.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test.csproj", "{FB192C73-6415-4FA2-9393-0BDD24BE7663}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathExprLib", "SymMathLib\MathExprLib.csproj", "{C318A80A-1E0A-4E73-8DA2-50B350CAC148}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestParser", "TestParser\TestParser.csproj", "{045DB5EC-7442-4898-8EEB-384D985755E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestBool", "TestBool\TestBool.csproj", "{D46B62BB-901C-400C-BF20-1B423D2A99AB}"
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		ConfigName.0 = Debug
+		ConfigName.1 = Release
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{FB192C73-6415-4FA2-9393-0BDD24BE7663}.Debug.ActiveCfg = Debug|.NET
+		{FB192C73-6415-4FA2-9393-0BDD24BE7663}.Debug.Build.0 = Debug|.NET
+		{FB192C73-6415-4FA2-9393-0BDD24BE7663}.Release.ActiveCfg = Release|.NET
+		{FB192C73-6415-4FA2-9393-0BDD24BE7663}.Release.Build.0 = Release|.NET
+		{C318A80A-1E0A-4E73-8DA2-50B350CAC148}.Debug.ActiveCfg = Debug|.NET
+		{C318A80A-1E0A-4E73-8DA2-50B350CAC148}.Debug.Build.0 = Debug|.NET
+		{C318A80A-1E0A-4E73-8DA2-50B350CAC148}.Release.ActiveCfg = Release|.NET
+		{C318A80A-1E0A-4E73-8DA2-50B350CAC148}.Release.Build.0 = Release|.NET
+		{045DB5EC-7442-4898-8EEB-384D985755E6}.Debug.ActiveCfg = Debug|.NET
+		{045DB5EC-7442-4898-8EEB-384D985755E6}.Debug.Build.0 = Debug|.NET
+		{045DB5EC-7442-4898-8EEB-384D985755E6}.Release.ActiveCfg = Release|.NET
+		{045DB5EC-7442-4898-8EEB-384D985755E6}.Release.Build.0 = Release|.NET
+		{D46B62BB-901C-400C-BF20-1B423D2A99AB}.Debug.ActiveCfg = Debug|.NET
+		{D46B62BB-901C-400C-BF20-1B423D2A99AB}.Debug.Build.0 = Debug|.NET
+		{D46B62BB-901C-400C-BF20-1B423D2A99AB}.Release.ActiveCfg = Release|.NET
+		{D46B62BB-901C-400C-BF20-1B423D2A99AB}.Release.Build.0 = Release|.NET
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,18 @@
+
+Fixed:
+Print Problems
+- ismul in MulDivNode (to reorder) 
+- bad parenthesis
+Parse Problems
+- effective problem in addition and multiplication associativity
+
+Todo:
+- if required a better paren removal in expressions
+- more efficient dynamic code generation (see later article on Matrix Expressions)
+- support for user defined functions in compiler (require more arguments in generated class)
+- multiple variable compiler
+
+Added:
+- comparision operators : < > != <= >= == (NOT DERIVABLE)
+- logical operators: && || ! (NOT DERIVABLE)
+- custom functions through delegate (NOT DERIVABLE and NOT COMPILED)

@@ -1,0 +1,522 @@
+public override float evaluate(Context c)
+		{
+			return literal;
+		}
+
+		public override Node derive (Context c)
+		{
+			return NilNode.Nil;
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			g.Emit(OpCodes.Ldc_R4, literal);
+		}
+
+		
+
+		public override float evaluate(Context c)
+		{
+			return 0;
+		}
+
+		public override Node derive (Context c)
+		{
+			return this;
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{			
+		}
+
+
+		public override float evaluate(Context c)
+		{
+			return c.GetSymbolValue(Symbol);
+		}
+
+		public override Node derive (Context c)
+		{
+			return c.IsDerivationSymbol(Symbol) ? (Node)LiteralNode.One : NilNode.Nil;
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			cc.EmitSymbolLoad(g, Symbol);
+		}
+
+
+		public override float evaluate(Context c)
+		{
+			float lv = Left.evaluate(c);
+			float rv = Right.evaluate(c);
+			return IsAddition ? lv+rv: lv-rv;
+		}
+
+		public override Node derive (Context c)
+		{
+			// check if c.DeriveSymbol == Symbol
+			Node ln = Left.derive(c);
+			Node rn = Right.derive(c);
+			int how = (ln == NilNode.Nil ? 1 : 0)|(rn == NilNode.Nil ? 2 : 0);
+
+			// check
+			if((how & 1) == 0 && ln is LiteralNode && ((LiteralNode)ln).Value == 0) 
+				how |= 1;
+
+			if((how & 2) == 0 && rn is LiteralNode && ((LiteralNode)rn).Value == 0) 
+				how |= 2;
+			
+			switch(how)
+			{
+				case 0:
+					return new AddSubNode(ln,rn, IsAddition);
+				case 1:
+					return !IsAddition ? new NegateNode(rn) : rn;
+				case 2:
+					return ln;
+				case 3:
+					return NilNode.Nil;		// same as 0
+				default:
+					return null;
+			}
+			
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			Left.compile(g,cc);
+			Right.compile(g,cc);
+			g.Emit(IsAddition ? OpCodes.Add : OpCodes.Sub);
+		}
+		
+		public override float evaluate(Context c)
+		{
+			float lv = Left == NilNode.Nil ? 1 : Left.evaluate(c);
+			float rv = Right == NilNode.Nil ? 1 : Right.evaluate(c);
+			return IsMultiplication ? lv*rv: lv/rv;
+		}
+
+		public override Node derive (Context c)
+		{
+			Node ln = Left.derive(c);
+			Node rn = Right.derive(c);
+			int how = (ln == NilNode.Nil ? 1 : 0)|(rn == NilNode.Nil ? 2 : 0);
+			int mulnull = 0;
+
+			if(how == 3) return NilNode.Nil;	// result is alway zero
+
+			if((how & 2) == 0 && rn is LiteralNode && ((LiteralNode)rn).Value == 1) 
+				mulnull |= 2;
+
+			if((how & 1) == 0 && ln is LiteralNode && ((LiteralNode)ln).Value == 1) 
+				mulnull |= 1;
+
+			// f'*g + f*g'	
+			if(IsMultiplication) 
+			{
+				// check if c.DeriveSymbol == Symbol
+				switch(how) 
+				{
+					case 0:											
+						return new AddSubNode((mulnull & 1) == 1 ? Right : new MulDivNode(ln, Right, true),
+							(mulnull & 2) == 2? Left : new MulDivNode(Left, rn, true), true);									
+					case 1:
+						return (mulnull & 2) == 2? Left : new MulDivNode(Left, rn, true);						
+					case 2:
+						return (mulnull & 1) == 1? Right : new MulDivNode(ln, Right, true);						
+				}
+			}
+			else 
+			{
+				// f /g => (f' g - f*g')/g^2
+				switch(how) 
+				{
+					case 0:
+						return new MulDivNode(new AddSubNode ((mulnull & 1) == 1? Right : new MulDivNode(ln, Right, true),
+							(mulnull & 2) == 2? Left : new MulDivNode(Left, rn, true), false), new MulDivNode(Right, Right, true), false);
+					case 1:
+						return (mulnull & 2) == 2? (Node) new NegateNode(new MulDivNode(Left, new MulDivNode(Right, Right, true), false)):
+							(Node)new MulDivNode(new NegateNode (new MulDivNode(Left, rn, true)), new MulDivNode(Right, Right, true), false);
+					case 2:
+						return (mulnull & 1) == 1? new MulDivNode(LiteralNode.One, Right, false) : new MulDivNode(ln, Right, false);
+				}
+				
+			}
+			return null;
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			Left.compile(g,cc);
+			Right.compile(g,cc);
+			g.Emit(IsMultiplication ? OpCodes.Mul : OpCodes.Div );
+		}
+
+		public override float evaluate(Context c)
+		{
+			if(Left == NilNode.Nil) return 0;
+			float lv = Left.evaluate(c);
+			float rv = Right == NilNode.Nil ? 0 : Right.evaluate(c);
+			return (float) Math.Pow(lv, rv);
+		}
+
+		public override Node derive (Context c)
+		{
+			if(Left is SymbolNode && c.IsDerivationSymbol(((SymbolNode)Left).Symbol)) 
+			{
+				Node rn = Right.derive(c);
+				// check for numeric exponent
+				if(Right is LiteralNode) 
+				{
+					float n = ((LiteralNode)Right).Value;
+					return Right * (Left ^ HA._(n-1));
+					//return new MulDivNode(new LiteralNode(n), new PowNode(Left, new LiteralNode(n-1)), true);	
+				}
+				else 
+				{
+					// zero => x^(g(x)-1) * g(x)
+					// one  => orig*(g(x)/x+ln x)
+					// else => x^g(x) * (g(x)/x+g'(x)ln x)
+					if(rn == NilNode.Nil || (rn is LiteralNode && ((LiteralNode)rn).Value == 0))												
+						return (Left ^ (Right - HA._(1))) * Right;
+					else if(rn is LiteralNode && ((LiteralNode)rn).Value == 1) 
+						return this * (Right / HA._(Left) + HA.Log(Left));	
+					else
+						return this * (Right / HA._(Left) + rn * HA.Log(Left));
+					// efficient versions
+					//return new MulDivNode(this,new AddSubNode(new MulDivNode(Right, Left, false), new FxNode(FxNode.FxType.Ln, Left), true), true);
+					//return new MulDivNode(new MulDivNode(this, new PowNode(Left, new AddSubNode(Right,new LiteralNode(1), false)), true) , Right, true);
+					//return new MulDivNode(this,new AddSubNode(new MulDivNode(Right, Left, false), new MulDivNode(rn, new FxNode(FxNode.FxType.Ln, Left), true), true), true);
+				}
+			}
+			else if(Right is LiteralNode) 
+			{
+				// d/dx f(x)^n = n*(f(x)^(n-1))*f'(x)				
+				// on n = 0 => f(x)^0 = 1 => 0
+				// on n = 1 => f(x)^1 = f(x) => f(x)'
+				// on n = 2 => f(x)^2 = 2 f(x) * f'(x)				
+				Node ln = Left.derive(c);								
+				float n = ((LiteralNode)Right).Value;
+
+				if(n == 0) 
+					return NilNode.Nil;
+				else if(n == 1) 
+					return ln;
+				else if(n == 2) 
+					return HA._(2) * Left * ln;
+				else					
+					return Right * (HA._(Left) ^ HA._(n-1)) * ln;				
+
+				// efficient versions:
+				//	return new MulDivNode(Right, new MulDivNode(Left, ln, true), true);
+				//  return new MulDivNode(new MulDivNode(Right, new PowNode(Left, new LiteralNode(n-1)), true), ln, true);
+			}
+
+			else 
+			{
+				// f(x)^g(x) * (g(x)*f'(x)/f(x)+g'(x)*ln(f(x)))
+				Node rn = Right.derive(c);
+				Node ln = Left.derive(c);
+				//return new MulDivNode(this, new AddSubNode(new MulDivNode(Right, new MulDivNode(ln, Left, false), true),
+				//	new MulDivNode(rn, new FxNode(FxNode.FxType.Ln, Left), true), true), true);
+				return this * (Right * HA._(ln) + rn * HA.Log(Left));
+			}
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			Left.compile(g,cc);
+			g.Emit(OpCodes.Conv_R8);
+			Right.compile(g,cc);
+			g.Emit(OpCodes.Conv_R8);
+			g.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Pow"), null);
+			g.Emit(OpCodes.Conv_R4);
+		}
+		
+		public override float evaluate(Context c)
+		{
+			return -this[0].evaluate(c);
+		}
+
+		public override Node derive (Context c)
+		{
+			Node n = this[0].derive(c);
+			if(n == NilNode.Nil) return n;
+			return new NegateNode(n);
+		}
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			this[0].compile(g,cc);
+			g.Emit(OpCodes.Neg);
+		}	
+
+
+		public override float evaluate(Context c)
+		{
+			float f = this[0].evaluate(c);
+			switch(Fx)
+			{
+				case FxType.Cos: return (float)Math.Cos(f);
+				case FxType.Sin: return (float)Math.Sin(f);				
+				case FxType.Ln: return (float)Math.Log(f);
+				default:  return f;
+					
+			}
+		}
+		
+		public override Node derive (Context c)
+		{
+			Node cn = this[0].derive(c);
+			if(cn == NilNode.Nil) return cn;			
+			bool childone = (cn is LiteralNode) && ((LiteralNode)cn).Value == 1;
+			Node n;
+			switch(Fx)
+			{
+				case FxType.Cos: n = new NegateNode(new FxNode(FxType.Sin, this[0])) ; break;
+				case FxType.Sin: n = new FxNode(FxType.Cos, this[0]); break;
+				case FxType.Ln:  n = new MulDivNode(LiteralNode.One, this[0], false); break; 
+				default:
+					return null;
+			}	
+			return childone ? n : new MulDivNode(n, cn, true);
+		}
+
+	
+
+		public override void compile(ILGenerator g, CompileContext cc)
+		{
+			MethodInfo mi = null;
+			bool doublemeth = true;
+			switch(Fx)
+			{
+				case FxType.Cos: mi = typeof(Math).GetMethod("Cos"); break;
+				case FxType.Sin: mi = typeof(Math).GetMethod("Sin"); break;
+				case FxType.Ln: mi = typeof(Math).GetMethod("Log");  break;
+				default:
+					break;					
+			}
+			//mi = typeof(TxMath).GetMethod("AZZ");
+			if(mi == null) return;
+
+			this[0].compile(g,cc);
+			if(doublemeth) 			
+				g.Emit(OpCodes.Conv_R8);			
+			g.EmitCall(OpCodes.Call, mi, null);
+			if(doublemeth) 			
+				g.Emit(OpCodes.Conv_R4);			
+		}	
+
+	class NamedFloatCollection : NameObjectCollectionBase
+	{
+		public object this[string s]
+		{
+			get { return BaseGet(s);}
+			set { BaseSet(s, value); }
+		}
+
+		public void Clear()
+		{
+			BaseClear();
+		}
+	};
+
+	class Context
+	{
+		public float GetSymbolValue(string name)
+		{
+			object o = symbols[name];
+			return o == null ? 0 : (float)o;
+		}
+
+		public bool IsDerivationSymbol(string name)
+		{
+			return name.Equals(derivationSymbol);
+		}
+
+		public Node Derive (string symbol, Node n)
+		{
+			derivationSymbol = symbol;
+			return n.derive(this);
+		}
+		
+		public void SetSymbolValue(string symbol, float value)
+		{
+			symbols[symbol] = value;
+		}
+
+		public void ClearSymbols()
+		{
+			symbols.Clear();
+		}
+		
+		protected NamedFloatCollection symbols = new NamedFloatCollection();
+		protected string derivationSymbol;
+
+		public static Context NilContext = new Context();
+	}
+
+	abstract class CompileContext : Context
+	{
+		public abstract void EmitSymbolLoad(ILGenerator g, string name);
+	}
+		
+		
+	class ComplexEvaluator : NodeVisitorImpl
+	{
+		public ComplexEvaluator(SymbolTable st)
+		{
+			table = st;
+		}
+
+		public Complex Evaluate(Node n)
+		{
+			stack.Clear();
+			n.Accept(this);
+			return stack.Pop();
+		}
+
+		protected override void VisitLiteral(LiteralNode n) 
+		{
+			stack.Push(n.Value);
+		}
+
+		protected override void VisitSymbol(SymbolNode n) 
+		{
+			object o = table.GetSymbolValue(n);
+			// if(o == null) throw 
+			stack.Push((Complex)o);
+		}
+
+		protected override void VisitAddSub(AddSubNode n) 
+		{
+			n.Left.Accept(this);
+			n.Right.Accept(this);		
+			Complex l = stack.Pop();
+			stack.Top = stack.Top + (n.IsAddition ? l : -l);
+		}
+
+		protected override void VisitMulDiv(MulDivNode n) 
+		{
+			n.Left.Accept(this);
+			n.Right.Accept(this);		
+			Complex l = stack.Pop();
+			if(n.IsMultiplication)
+				stack.Top = stack.Top * l;
+			else
+				stack.Top = stack.Top / l;
+		}
+
+		protected override void VisitPow(PowNode n)
+		{
+			n.Left.Accept(this);
+			n.Right.Accept(this);		
+			Complex l = stack.Pop();
+			// stack.Top = Math.Pow(stack.Top, l);
+		}
+
+		protected override void VisitNegate(NegateNode n)
+		{
+			n[0].Accept(this);
+			stack.Top = - stack.Top;
+		}
+
+		// TODO
+		protected override void VisitFx(FxNode n)
+		{
+			n[0].Accept(this);
+			Complex f = stack.Top;
+			switch(n.Fx)
+			{
+				//case FxNode.FxType.Cos: f = (float)Math.Cos(f); break;
+				//case FxNode.FxType.Sin: f = (float)Math.Sin(f); break;
+				//case FxNode.FxType.Ln:  f = (float)Math.Log(f); break;
+				default:  break;					
+			}
+			stack.Top = f;
+		}
+				
+		ComplexStack stack = new ComplexStack(100);
+		SymbolTable table;
+	}
+		
+	public class ComplexStack
+	{
+		public ComplexStack(int size)
+		{
+			data = new Complex[size];
+			top  = 0;
+		}
+
+		public void Push(Complex f)
+		{
+			data[top++] = f;			
+		}
+
+		public Complex Pop()
+		{
+			return data[--top];
+		}
+
+		public Complex Top
+		{
+			get { return data[top-1]; }
+			set { data[top-1] = value; }
+		}
+
+		public void Clear()
+		{
+			top = 0;
+		}
+
+		Complex [] data;
+		int top; 
+	}
+		
+		
+	public class Secanti
+	{
+		public delegate float Fx1(float f);
+
+		public static float FindRoot(float xn, float xnprev, Fx1 f0,int maxiter)
+		{
+			float fxnprev = f0(xnprev);
+			for(int i = 0; i < maxiter; i++) 
+			{
+				float fxn = f0(xn);
+				float xnnext = xn - fxn*(xn-xnprev)/(fxn-fxnprev);
+				xnprev = xn;
+				xn     = xnnext;
+				fxnprev = fxn;
+				if(Math.Abs(fxn) < 1E-6) break;
+			}
+			return xn;
+		}
+	}
+
+	public class Steffensen
+	{
+		public delegate float Fx1(float f);
+
+		// x[i+1] = x[i] - f(x[i])/f'(x[i])
+		public static float FindRoot(float xn, Fx1 f0,int maxiter)
+		{
+			for(int i = 0; i < maxiter; i++) 
+			{
+				float fxn = f0(xn);
+				float xnnext = xn- fxn*fxn/(fxn-f0(xn-fxn));
+				xn = xnnext;
+				if(Math.Abs(fxn) < 1E-6) break;
+			}
+			return xn;
+		}
+	}
+		
+			r = Secanti.FindRoot(20, 5, new Secanti.Fx1(f.evaluate), 10000);
+			Console.Out.WriteLine("Solution is " + r + " and value is " + f.evaluate(r) + " and deriv " + fd.evaluate(r));
+
+			r = Steffensen.FindRoot(5, new Steffensen.Fx1(f.evaluate), 10000);
+			Console.Out.WriteLine("Solution is " + r + " and value is " + f.evaluate(r) + " and deriv " + fd.evaluate(r));
+
+		
