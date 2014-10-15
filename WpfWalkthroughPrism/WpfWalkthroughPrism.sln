@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld.Desktop", "WpfWalkthroughPrism\HelloWorld.Desktop.csproj", "{269770AB-022A-4347-BFB6-77C00D0C1FA2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{269770AB-022A-4347-BFB6-77C00D0C1FA2}.Debug|x86.ActiveCfg = Debug|x86
+		{269770AB-022A-4347-BFB6-77C00D0C1FA2}.Debug|x86.Build.0 = Debug|x86
+		{269770AB-022A-4347-BFB6-77C00D0C1FA2}.Release|x86.ActiveCfg = Release|x86
+		{269770AB-022A-4347-BFB6-77C00D0C1FA2}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
